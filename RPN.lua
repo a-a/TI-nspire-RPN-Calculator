@@ -7,7 +7,7 @@ local debug = false
 local debugChar = ""
 local originalSettings = math.getEvalSettings()
 
---Init
+--Initialise the stack
 function on.activate()
     for i=1,stackSize do
         stack[i]="0"
@@ -19,19 +19,26 @@ function on.paint(gc)
     local sh = gc:getStringHeight(entry)
     local sw = gc:getStringWidth("> "..entry)
     local entryLineOffset = 0;
-    local alignmentOffset = screen:height()/sh-1 >= 10 and gc:getStringWidth("0") or 0
+    local alignmentOffset = screen:height()/sh-1 >= 10 and gc:getStringWidth("0") or 2
     
     if isOnEntryLine then 
-        gc:drawString("> "..entry, alignmentOffset, screen:height()-sh)
+        gc:setFont("sansserif", "b", 11)
+        gc:drawString(" > ", alignmentOffset, screen:height()-sh)
+        gc:drawString(entry.."_", 20, screen:height()-sh)
+        gc:setFont("sansserif", "r", 11)
         entryLineOffset = 1;
     end
     
     math.setEvalSettings({ {'Calculation Mode', 'Approximate'} })
-    gc:drawString("X:"..stack[1], alignmentOffset, screen:height()-(1+entryLineOffset)*sh)
-    gc:drawString("Y:"..stack[2], alignmentOffset, screen:height()-(2+entryLineOffset)*sh)
-    gc:drawString("Z:"..stack[3], alignmentOffset, screen:height()-(3+entryLineOffset)*sh)
+    gc:drawString("X: ", alignmentOffset, screen:height()-(1+entryLineOffset)*sh)
+    gc:drawString(stack[1], alignmentOffset+20, screen:height()-(1+entryLineOffset)*sh)
+    gc:drawString("Y: ", alignmentOffset, screen:height()-(2+entryLineOffset)*sh)
+    gc:drawString(stack[2], alignmentOffset+20, screen:height()-(2+entryLineOffset)*sh)
+    gc:drawString("Z: ", alignmentOffset, screen:height()-(3+entryLineOffset)*sh)
+    gc:drawString(stack[3], alignmentOffset+20, screen:height()-(3+entryLineOffset)*sh)
     for k=4,screen:height()/sh-1 do
-        gc:drawString(k..":"..stack[k], k<10 and alignmentOffset or 0, screen:height()-(k+entryLineOffset)*sh)
+        gc:drawString(k..": ", alignmentOffset, screen:height()-(k+entryLineOffset)*sh)
+        gc:drawString(stack[k], k<10 and alignmentOffset+20 or 0, screen:height()-(k+entryLineOffset)*sh)
     end
     if debug then gc:drawString(debugChar, screen:width() - gc:getStringWidth(debugChar), screen:height()-sh) end
     
@@ -56,7 +63,7 @@ function on.charIn(char)
     debugChar = char..type(char)
     print(char)
     
-    --Is it a handelled operation
+    --Is it a handled operation
     if char == "−" then variables[1] = math.evalStr("-"..variables[1]);   singleLine = true;     validOperation = true
     elseif char == "+" then variables[2] = math.evalStr(variables[2].."+"..variables[1]);  validOperation = true
     elseif char == "-" then variables[2] = math.evalStr(variables[2].."-"..variables[1]);  validOperation = true
@@ -120,17 +127,19 @@ end
 
 --Push
 function on.enterKey()
-    for i=0,stackSize-1 do
-        stack[stackSize-i]=stack[stackSize-i-1]
-    end
-    if isOnEntryLine then
-        stack[1] = entry
-        entry = ""
-    else
-        stack[1] = stack[2]
-    end
-    isOnEntryLine = false
-    screen:invalidate()
+    if entry ~= "" then
+        for i=0,stackSize-1 do
+            stack[stackSize-i]=stack[stackSize-i-1]
+        end
+        if isOnEntryLine then
+            stack[1] = entry
+            entry = ""
+        else
+            stack[1] = stack[2]
+        end
+        isOnEntryLine = false
+        screen:invalidate()
+        end
 end
 
 --Pop
@@ -139,10 +148,26 @@ function on.returnKey()
     screen:invalidate()
 end
 
+-- Pop, for emulator
+function on.clearKey()
+	popStack()
+	screen:invalidate()
+end
+
 --Delete characters from entry
 function on.backspaceKey()
     entry = entry:usub(0,-2)
     screen:invalidate()
+end
+
+--Pop to editor
+function on.arrowUp()
+    if isOnEntryLine == false then
+        entry=stack[1]
+        popStack()
+        isOnEntryLine=true
+        screen:invalidate()
+    end
 end
 
 --Swap
